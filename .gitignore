@@ -1,5 +1,6 @@
 .venv
 .idea
 data/*
+!data/roanoke/
 output/*
 plots/*
