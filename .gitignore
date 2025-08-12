@@ -2,5 +2,6 @@
 .idea
 data/*
 !data/roanoke/
+!data/dot.gov
 output/*
 plots/*
