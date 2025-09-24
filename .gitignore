@@ -1,4 +1,6 @@
 .venv
+.env
+.env.*
 .idea
 data/*
 !data/roanoke/
