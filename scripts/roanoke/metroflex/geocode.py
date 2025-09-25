@@ -4,7 +4,7 @@ import pathlib
 
 import pandas as pd
 
-import geocodio
+import geocodio.exceptions
 
 
 project_root = pathlib.Path(__file__).parent.parent.parent.parent
@@ -47,7 +47,19 @@ addresses = list(addresses)
 
 print('reverse geocoding')
 client = geocodio.GeocodioClient(GEOCODIO_API_KEY)
-results = client.geocode(addresses)
+
+# it's possible to do batch geocoding, but you lose the ability to match input strings to outputs
+results = {}
+for i, address in enumerate(addresses):
+    print(f'geocoding {i} of {len(addresses)}: {address.replace('\n', ' ')}')
+    try:
+        results[address] = client.geocode(address)
+    except geocodio.exceptions.GeocodioDataError:
+        try:
+            results[address] = client.geocode(address + ', roanoke, va')
+        except geocodio.exceptions.GeocodioDataError:
+            print(f'  WARNING - failed to find address {address.replace('\n', ' ')}')
+
 
 print('writing results')
 with open(metroflex_data / 'metroflex-addresses.json', 'w') as f:
