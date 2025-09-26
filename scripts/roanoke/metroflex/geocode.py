@@ -1,11 +1,12 @@
+"""Fetch geocoding data from geocod.io"""
 import json
 import os
 import pathlib
+import re
 
 import pandas as pd
 
 import geocodio.exceptions
-
 
 project_root = pathlib.Path(__file__).parent.parent.parent.parent
 metroflex_data = project_root / 'data/metroflex'
@@ -23,27 +24,24 @@ def collect_csv_values(file_path, columns=None):
     return vals
 
 
+def collect_addresses(metroflex_data_path, filenames):
+    addys = set()
+    for filename in filenames:
+        addys = addys.union(
+            collect_csv_values(
+                metroflex_data_path / filename,
+                columns=['Pickup Address', 'Dropoff Address']
+            )
+        )
+    return addys
+
+
 print('preparing addresses')
-addresses = set()
-addresses = addresses.union(
-    collect_csv_values(
-        metroflex_data / 'metroflex-2025-02-trip-report-cleaned.csv',
-        columns=['Pickup Address', 'Dropoff Address']
-    )
-)
-addresses = addresses.union(
-    collect_csv_values(
-        metroflex_data / 'metroflex-2025-03-trip-report-cleaned.csv',
-        columns=['Pickup Address', 'Dropoff Address']
-    )
-)
-addresses = addresses.union(
-    collect_csv_values(
-        metroflex_data / 'metroflex-2025-06-trip-report-cleaned.csv',
-        columns=['Pickup Address', 'Dropoff Address']
-    )
-)
-addresses = list(addresses)
+addresses = collect_addresses(metroflex_data, filenames=[
+    'metroflex-2025-02-trip-report-cleaned.csv',
+    'metroflex-2025-03-trip-report-cleaned.csv',
+    'metroflex-2025-06-trip-report-cleaned.csv',
+])
 
 print('reverse geocoding')
 client = geocodio.GeocodioClient(GEOCODIO_API_KEY)
@@ -51,15 +49,22 @@ client = geocodio.GeocodioClient(GEOCODIO_API_KEY)
 # it's possible to do batch geocoding, but you lose the ability to match input strings to outputs
 results = {}
 for i, address in enumerate(addresses):
-    print(f'geocoding {i} of {len(addresses)}: {address.replace('\n', ' ')}')
-    try:
-        results[address] = client.geocode(address)
-    except geocodio.exceptions.GeocodioDataError:
-        try:
-            results[address] = client.geocode(address + ', roanoke, va')
-        except geocodio.exceptions.GeocodioDataError:
-            print(f'  WARNING - failed to find address {address.replace('\n', ' ')}')
 
+    # need to modify query here, because original address string will be used to lookup results
+    query = address
+    if re.search(r'\bva\b', address.lower()) is None:
+        if 'braeburn' in address.lower():
+            query += ', Salem, VA'
+        elif 'spartan' in address.lower():
+            query += ', Salem, VA'
+        else:
+            query += ', Roanoke, VA'
+
+    print(f'geocoding {i} of {len(addresses)}: {query.replace('\n', ' ')}')
+    try:
+        results[address] = client.geocode(query)
+    except geocodio.exceptions.GeocodioDataError:
+        print(f'  WARNING - failed to find address {query.replace('\n', ' ')}')
 
 print('writing results')
 with open(metroflex_data / 'metroflex-addresses.json', 'w') as f:
