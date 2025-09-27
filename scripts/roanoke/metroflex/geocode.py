@@ -52,6 +52,9 @@ for i, address in enumerate(addresses):
 
     # need to modify query here, because original address string will be used to lookup results
     query = address
+    if query.lower() == 'sheetz':
+        query = '3353 Orange Avenue Northeast'  # assume it's this sheetz (safe bet if you look at the spreadsheet)
+
     if re.search(r'\bva\b', address.lower()) is None:
         if 'braeburn' in address.lower():
             query += ', Salem, VA'
